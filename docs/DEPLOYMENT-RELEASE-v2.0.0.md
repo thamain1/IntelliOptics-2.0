@@ -20,11 +20,18 @@ IntelliOptics 2.0 has been packaged and deployed to Azure Container Registry and
 
 ### Published Images
 
+#### Cloud Components
 | Image | Tags | Size |
 |-------|------|------|
 | `intellioptics/backend` | v2.0.0, v2.0.0-20260120, latest | ~1.66 GB |
 | `intellioptics/frontend` | v2.0.0, v2.0.0-20260120, latest | ~94 MB |
 | `intellioptics/worker` | v2.0.0, v2.0.0-20260120, latest | ~1.17 GB |
+
+#### Edge Components
+| Image | Tags | Size |
+|-------|------|------|
+| `intellioptics/edge-api` | v2.0.0, v2.0.0-20260120, latest | ~1.2 GB |
+| `intellioptics/inference` | v2.0.0, v2.0.0-20260120, latest | ~13.4 GB |
 
 ### Tagging Convention
 - `v2.0.0` - Semantic version (immutable release)
@@ -36,10 +43,14 @@ IntelliOptics 2.0 has been packaged and deployed to Azure Container Registry and
 # Login to ACR (requires Azure CLI)
 az acr login --name acrintellioptics
 
-# Pull specific version
+# Pull Cloud images
 docker pull acrintellioptics.azurecr.io/intellioptics/backend:v2.0.0
 docker pull acrintellioptics.azurecr.io/intellioptics/frontend:v2.0.0
 docker pull acrintellioptics.azurecr.io/intellioptics/worker:v2.0.0
+
+# Pull Edge images
+docker pull acrintellioptics.azurecr.io/intellioptics/edge-api:v2.0.0
+docker pull acrintellioptics.azurecr.io/intellioptics/inference:v2.0.0
 ```
 
 ---
@@ -134,7 +145,44 @@ docker compose -f docker-compose.prod.yml up -d
 
 ---
 
-## 4. Required Configuration
+## 4. Edge Deployment
+
+Edge deployment is for on-premise inference at the edge (factory floor, remote sites, etc.)
+
+### Edge Pull Commands
+```powershell
+az acr login --name acrintellioptics
+
+docker pull acrintellioptics.azurecr.io/intellioptics/edge-api:v2.0.0
+docker pull acrintellioptics.azurecr.io/intellioptics/inference:v2.0.0
+docker pull postgres:15-alpine
+docker pull nginx:1.25-alpine
+```
+
+### Edge Configuration
+Copy `edge/.env.template` to `edge/.env` and configure:
+
+| Variable | Description |
+|----------|-------------|
+| `INTELLIOPTICS_API_TOKEN` | API token from central cloud app |
+| `CENTRAL_WEB_APP_URL` | URL of the central cloud deployment |
+| `POSTGRES_PASSWORD` | Local edge database password |
+
+### Edge Deployment
+```powershell
+cd edge
+docker compose up -d
+```
+
+### Edge Access Points
+| Service | URL |
+|---------|-----|
+| Edge API | http://localhost:8080 |
+| Inference Service | http://localhost:8001 |
+
+---
+
+## 5. Required Configuration
 
 ### Minimum Required Settings (.env)
 
