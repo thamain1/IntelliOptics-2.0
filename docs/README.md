@@ -22,16 +22,16 @@ IntelliOptics 2.0 is a complete rebuild of the IntelliOptics platform with a foc
 ┌─────────────────────────────────────────────────────────┐
 │                  Edge Device                            │
 │                                                         │
-│  Client → nginx:30101 ──┬─ Success → edge-api:8718    │
-│                         └─ 404 → Central Web App       │
+│  Client → nginx:30101 ──┬─ Success → edge-api:8718      │ 
+│                         └─ 404 → Central Web App        │
 │                                                         │
-│  edge-api:8718 (Edge Endpoint)                         │
+│  edge-api:8718 (Edge Endpoint)                          │
 │    ↓                                                    │
-│  inference:8001 (Multi-detector ONNX)                  │
-│    ├─ Primary models                                   │
-│    └─ OODD models (ground truth)                       │
+│  inference:8001 (Multi-detector ONNX)                   │
+│    ├─ Primary models                                    │
+│    └─ OODD models (ground truth)                        │
 │                                                         │
-│  postgres:5432 (optional - detector metadata)          │
+│  postgres:5432 (optional - detector metadata)           │
 └─────────────────────────────────────────────────────────┘
          │
          │ (Escalation: low confidence, human review)
@@ -39,22 +39,22 @@ IntelliOptics 2.0 is a complete rebuild of the IntelliOptics platform with a foc
 ┌─────────────────────────────────────────────────────────┐
 │         Central Web Application (Cloud)                 │
 │                                                         │
-│  nginx:80/443 → backend:8000 (API)                     │
-│              → frontend:3000 (React UI)                │
+│  nginx:80/443 → backend:8000 (API)                      │
+│              → frontend:3000 (React UI)                 │
 │                                                         │
-│  backend:8000 (FastAPI)                                │
-│    ├─ /detectors  (CRUD)                               │
-│    ├─ /queries    (Submit, Get)                        │
-│    ├─ /escalations (Review queue)                      │
-│    └─ /hubs       (Edge device management)             │
+│  backend:8000 (FastAPI)                                 │
+│    ├─ /detectors  (CRUD)                                │
+│    ├─ /queries    (Submit, Get)                         │
+│    ├─ /escalations (Review queue)                       │
+│    └─ /hubs       (Edge device management)              │
 │                                                         │
-│  frontend:3000 (React)                                 │
-│    ├─ Review Queue (Human labeling)                    │
-│    ├─ Detector Management                              │
-│    └─ Edge Device Dashboard                            │
+│  frontend:3000 (React)                                  │
+│    ├─ Review Queue (Human labeling)                     │
+│    ├─ Detector Management                               │
+│    └─ Edge Device Dashboard                             │
 │                                                         │
-│  worker:8001 (Inference worker for cloud-side)         │
-│  postgres:5432 (Central database)                      │
+│  worker:8001 (Inference worker for cloud-side)          │
+│  postgres:5432 (Central database)                       │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -165,7 +165,7 @@ Each detector controls:
 - RTSP camera streams
 - HRM AI reasoning (Phase 2)
 
-### 3. SendGrid Alerts
+### 3. Alerts
 
 Automatic email alerts for escalations:
 - Configurable recipient list
@@ -421,8 +421,8 @@ See `docs/HRM-TRAINING.md` for complete HRM training guide.
 
 ### Getting Started
 - **[Detector Creation Guide](docs/DETECTOR-CREATION-GUIDE.md)** ⭐ - Complete guide to creating and configuring detectors
-- **[Web Interface Guide](docs/WEB-INTERFACE-GUIDE.md)** - Using the centralized management dashboard
-- **[Camera Health Monitoring](docs/CAMERA-HEALTH-MONITORING.md)** - Image quality and tampering detection
+- **[Web Interface Guide](docs/WEB-INTERFACE-GUIDE.md)** ⭐ - Using the centralized management dashboard
+- **[Camera Health Monitoring](docs/CAMERA-HEALTH-MONITORING.md)** ⭐ - Image quality and tampering detection
 
 ### Architecture & Testing
 - **Architecture**: `docs/ARCHITECTURE.md` - Full system design (from plan file)
@@ -445,4 +445,4 @@ For issues, questions, or feature requests:
 
 ## License
 
-Proprietary - IntelliOptics 2.0
+Proprietary - IntelliOptics 2.0 is a Product of 4wardmotion Solutions, Inc. All rights to the technology, name, brand, and associated IP are the property of this same entity.  
