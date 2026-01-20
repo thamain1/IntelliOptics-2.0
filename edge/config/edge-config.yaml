@@ -1,0 +1,215 @@
+# IntelliOptics 2.0 - Edge Configuration
+# Detector-centric configuration with confidence-based escalation
+
+global_config:
+  # Model update check interval (seconds)
+  refresh_rate: 60.0
+
+  # Random audit rate for high-confidence results (for model improvement)
+  confident_audit_rate: 0.00001  # 0.001% of confident results sent to cloud for audit
+
+  # Central web app endpoint for escalations
+  central_web_app_url: "https://central-web-app.example.com"
+
+# Edge inference configurations (profiles)
+edge_inference_configs:
+  # Default: Edge-first with cloud escalation
+  default:
+    enabled: true
+    api_token: ${INTELLIOPTICS_API_TOKEN}
+    always_return_edge_prediction: false
+    disable_cloud_escalation: false
+    min_time_between_escalations: 2.0  # Cooldown between escalations (seconds)
+
+  # Offline: No cloud escalation, always return edge result
+  offline:
+    enabled: true
+    api_token: ${INTELLIOPTICS_API_TOKEN}
+    always_return_edge_prediction: true
+    disable_cloud_escalation: true
+    min_time_between_escalations: 0
+
+  # Aggressive: Lower threshold for escalation
+  aggressive:
+    enabled: true
+    api_token: ${INTELLIOPTICS_API_TOKEN}
+    always_return_edge_prediction: false
+    disable_cloud_escalation: false
+    min_time_between_escalations: 0.5
+
+# Detector configurations
+# Each detector controls AI engagement via confidence thresholds and OODD ground truth
+detectors:
+  # Test detector (matches /opt/intellioptics/models/det_test_001/)
+  det_test_001:
+    detector_id: det_test_001
+    name: "Test Detector - Binary Classification"
+    edge_inference_config: default
+    confidence_threshold: 0.85  # Escalate if confidence < 0.85
+    patience_time: 30.0
+    mode: BINARY  # BINARY, MULTICLASS, COUNTING, BOUNDING_BOX, TEXT
+    class_names: ["pass", "fail"]
+    hrm_enabled: false  # Set to true when HRM Phase 2 is ready
+
+  # Example: Binary quality inspection detector
+  det_quality_check_001:
+    detector_id: det_quality_check_001
+    name: "Quality Check - Main Line"
+    edge_inference_config: default
+    confidence_threshold: 0.85  # Escalate if confidence < 0.85
+    patience_time: 30.0
+    mode: BINARY  # BINARY, MULTICLASS, COUNTING, BOUNDING_BOX, TEXT
+    class_names: ["pass", "defect"]
+    hrm_enabled: false  # Set to true when HRM Phase 2 is ready
+
+  # Example: Multiclass defect type detector
+  det_defect_classifier_002:
+    detector_id: det_defect_classifier_002
+    name: "Defect Type Classifier"
+    edge_inference_config: default
+    confidence_threshold: 0.90
+    patience_time: 30.0
+    mode: MULTICLASS
+    class_names: ["crack", "scratch", "discoloration", "dent", "good"]
+    hrm_enabled: false
+
+  # Example: Offline-capable detector (no cloud dependency)
+  det_offline_003:
+    detector_id: det_offline_003
+    name: "Offline Quality Check"
+    edge_inference_config: offline
+    confidence_threshold: 0.80
+    patience_time: 15.0
+    mode: BINARY
+    class_names: ["pass", "fail"]
+    hrm_enabled: false
+
+# RTSP camera streams configuration
+streams:
+  # Example 1: CRITICAL INSPECTION - Check health on EVERY frame (0s interval)
+  camera_line_1:
+    name: "Production Line 1 - Quality Station"
+    detector_id: det_quality_check_001
+    url: "rtsp://192.168.1.100:554/stream1"
+    sampling_interval_seconds: 2.0  # Capture frame every 2 seconds
+    reconnect_delay_seconds: 5.0
+    backend: "auto"  # auto, ffmpeg, gstreamer
+    encoding: "jpeg"  # jpeg, png
+    submission_method: "edge"  # edge (direct inference) or api (REST endpoint)
+    credentials:
+      username_env: "RTSP_USER"  # Environment variable name
+      password_env: "RTSP_PASS"
+    # Camera health monitoring - EVERY FRAME (critical inspection)
+    camera_health:
+      enabled: true  # Enable health monitoring
+      check_tampering: true  # Detect camera movement, obstruction, focus changes
+      log_health_status: true  # Log health metrics
+      skip_unhealthy_frames: true  # Skip frames with CRITICAL health status
+      health_check_interval_seconds: 0.0  # 0.0 = check EVERY frame (no caching)
+      # Quality thresholds (adjust based on camera/environment)
+      blur_threshold: 100.0  # Laplacian variance below this = blurry
+      brightness_low: 40.0  # Mean brightness below this = too dark
+      brightness_high: 220.0  # Mean brightness above this = too bright
+      contrast_low: 30.0  # Std dev below this = low contrast
+      obstruction_threshold: 0.3  # >30% dark pixels = obstructed
+      movement_threshold: 50.0  # Feature distance indicating camera moved
+
+  # Example 2: PERIODIC MONITORING - Check health every 10 seconds (reduced overhead)
+  camera_line_2:
+    name: "Production Line 2 - Quality Station"
+    detector_id: det_defect_classifier_002
+    url: "rtsp://192.168.1.101:554/stream1"
+    sampling_interval_seconds: 3.0  # Capture every 3 seconds
+    reconnect_delay_seconds: 5.0
+    backend: "auto"
+    encoding: "jpeg"
+    submission_method: "edge"
+    credentials:
+      username_env: "RTSP_USER"
+      password_env: "RTSP_PASS"
+    # Camera health monitoring - EVERY 10 SECONDS (efficient for stable environments)
+    camera_health:
+      enabled: true
+      check_tampering: true
+      log_health_status: true
+      skip_unhealthy_frames: true
+      health_check_interval_seconds: 10.0  # Check health every 10 seconds
+      # Between checks, uses cached health result from last assessment
+      # Example: Sampling at 3s intervals means ~3 frames use cached result
+      blur_threshold: 100.0
+      brightness_low: 40.0
+      brightness_high: 220.0
+      contrast_low: 30.0
+      obstruction_threshold: 0.3
+      movement_threshold: 50.0
+
+  # Example 3: SECURITY CAMERA - Frequent tampering checks, periodic quality checks
+  camera_security_1:
+    name: "Security Camera - Entrance"
+    detector_id: det_test_001
+    url: "rtsp://192.168.1.102:554/stream1"
+    sampling_interval_seconds: 1.0  # Capture every 1 second
+    reconnect_delay_seconds: 5.0
+    backend: "auto"
+    encoding: "jpeg"
+    submission_method: "edge"
+    credentials:
+      username_env: "RTSP_USER"
+      password_env: "RTSP_PASS"
+    # Security-focused: Frequent checks to detect tampering quickly
+    camera_health:
+      enabled: true
+      check_tampering: true  # Important for security
+      log_health_status: true
+      skip_unhealthy_frames: false  # Log security issues but don't skip frames
+      health_check_interval_seconds: 5.0  # Check every 5 seconds for tampering
+      blur_threshold: 80.0  # Lower threshold (accept slightly blurry for security)
+      brightness_low: 20.0  # Lower threshold (accept darker images)
+      brightness_high: 240.0
+      contrast_low: 20.0
+      obstruction_threshold: 0.2  # More sensitive to obstruction
+      movement_threshold: 30.0  # More sensitive to camera movement
+
+  # Example 4: DISABLED - No health monitoring
+  camera_line_3:
+    name: "Production Line 3 - Non-critical"
+    detector_id: det_test_001
+    url: "rtsp://192.168.1.103:554/stream1"
+    sampling_interval_seconds: 5.0
+    reconnect_delay_seconds: 5.0
+    backend: "auto"
+    encoding: "jpeg"
+    submission_method: "edge"
+    credentials:
+      username_env: "RTSP_USER"
+      password_env: "RTSP_PASS"
+    # Camera health monitoring DISABLED (default behavior)
+    camera_health:
+      enabled: false
+
+# SendGrid email alert configuration
+alerts:
+  sendgrid:
+    enabled: true
+    api_key_env: "SENDGRID_API_KEY"
+    from_email: "alerts@intellioptics.com"
+    reviewer_emails:
+      - "reviewer1@company.com"
+      - "reviewer2@company.com"
+
+  # Alert thresholds
+  confidence_threshold: 0.8  # Send alert if confidence < 0.8
+  batch_size: 10  # Batch alerts (send every 10 escalations)
+  batch_interval_minutes: 15  # Or send every 15 minutes
+
+# Model management
+models:
+  # Automatic model download from central web app
+  auto_download: true
+
+  # Model caching strategy
+  cache_max_models: 5  # Keep up to 5 models in memory (LRU)
+  cache_model_versions: 2  # Keep latest 2 versions per detector
+
+  # Model repository path (mounted volume)
+  repository_path: /models

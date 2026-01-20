@@ -1,0 +1,39 @@
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+WORKDIR /app
+
+# Install system dependencies (libgl1 provides OpenGL for OpenCV, git for CLIP)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    git \
+    libgomp1 \
+    libgl1 \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy inference service code
+COPY inference_service.py /app/inference_service.py
+
+# Copy YOLOWorld model file
+COPY yolov8s-worldv2.pt /app/yolov8s-worldv2.pt
+
+# Create model directory
+RUN mkdir -p /models
+
+# Health check
+HEALTHCHECK --interval=10s --timeout=3s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8081/health || exit 1
+
+# Expose ports
+EXPOSE 8001 8081
+
+# Run inference service
+CMD ["python", "inference_service.py"]

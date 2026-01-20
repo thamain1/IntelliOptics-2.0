@@ -1,0 +1,14 @@
+﻿2025-10-20T01:18:01.1737051Z Post job cleanup.
+2025-10-20T01:18:01.2493871Z [command]/usr/bin/git version
+2025-10-20T01:18:01.2533427Z git version 2.51.0
+2025-10-20T01:18:01.2580673Z Temporarily overriding HOME='/home/runner/work/_temp/04e7d61e-29a0-4109-bb09-18ffa04151e2' before making global git config changes
+2025-10-20T01:18:01.2582511Z Adding repository directory to the temporary git global config as a safe directory
+2025-10-20T01:18:01.2585521Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/IntelliOptics-Dashboard/IntelliOptics-Dashboard
+2025-10-20T01:18:01.2620336Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-10-20T01:18:01.2653157Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-10-20T01:18:01.2905992Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-10-20T01:18:01.2930142Z http.https://github.com/.extraheader
+2025-10-20T01:18:01.2944864Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2025-10-20T01:18:01.2967019Z error: could not lock config file .git/config: Permission denied
+2025-10-20T01:18:01.3003693Z ##[warning]Failed to remove 'http.https://github.com/.extraheader' from the git config
+2025-10-20T01:18:01.3015804Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
