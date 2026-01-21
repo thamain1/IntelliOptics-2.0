@@ -86,6 +86,7 @@ const DetectorsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [groups, setGroups] = useState<string[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string>('');
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const {
     register,
@@ -135,6 +136,19 @@ const DetectorsPage: React.FC = () => {
       setGroups(res.data);
     } catch (err) {
       console.error('Failed to fetch groups:', err);
+    }
+  };
+
+  const handleDeleteDetector = async (detectorId: string, detectorName: string) => {
+    try {
+      await axios.delete(`/detectors/${detectorId}`);
+      toast.success(`Detector "${detectorName}" deleted successfully`);
+      setDeleteConfirm(null);
+      fetchDetectors();
+      fetchGroups();
+    } catch (err) {
+      toast.error('Failed to delete detector');
+      console.error('Error deleting detector:', err);
     }
   };
 
@@ -539,11 +553,32 @@ const DetectorsPage: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {detectors.map((det: any) => (
-            <Link
+            <div
               key={det.id}
-              to={`/detectors/${det.id}/configure`}
-              className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700 hover:border-gray-600 transition group"
+              className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700 hover:border-gray-600 transition group relative"
             >
+              {/* Delete Confirmation Overlay */}
+              {deleteConfirm === det.id && (
+                <div className="absolute inset-0 bg-gray-900/95 z-10 flex flex-col items-center justify-center p-4 rounded-lg">
+                  <p className="text-white text-center mb-4">Delete "<span className="font-bold">{det.name}</span>"?</p>
+                  <p className="text-gray-400 text-xs text-center mb-4">Historical data will be preserved.</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setDeleteConfirm(null)}
+                      className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleDeleteDetector(det.id, det.name)}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded text-sm"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Card Header */}
               <div className="p-4 border-b border-gray-700">
                 <div className="flex items-center justify-between mb-2">
@@ -556,26 +591,43 @@ const DetectorsPage: React.FC = () => {
                   }`}>
                     {det.config?.mode || 'UNKNOWN'}
                   </span>
-                  {det.primary_model_blob_path ? (
-                    <span className="bg-green-900/30 text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-green-800/50">
-                      READY
-                    </span>
-                  ) : (
-                    <span className="bg-yellow-900/30 text-yellow-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-yellow-800/50">
-                      NO MODEL
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {det.primary_model_blob_path ? (
+                      <span className="bg-green-900/30 text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-green-800/50">
+                        READY
+                      </span>
+                    ) : (
+                      <span className="bg-yellow-900/30 text-yellow-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-yellow-800/50">
+                        NO MODEL
+                      </span>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDeleteConfirm(det.id);
+                      }}
+                      className="p-1 hover:bg-red-900/50 rounded text-red-400 hover:text-red-300"
+                      title="Delete detector"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-                <h3 className="font-bold text-white text-lg group-hover:text-blue-400 transition truncate">
-                  {det.name}
-                </h3>
-                {det.query_text && (
-                  <p className="text-sm text-blue-400 mt-1 truncate">{det.query_text}</p>
-                )}
+                <Link to={`/detectors/${det.id}/configure`} className="block">
+                  <h3 className="font-bold text-white text-lg group-hover:text-blue-400 transition truncate">
+                    {det.name}
+                  </h3>
+                  {det.query_text && (
+                    <p className="text-sm text-blue-400 mt-1 truncate">{det.query_text}</p>
+                  )}
+                </Link>
               </div>
 
               {/* Card Body */}
-              <div className="p-4">
+              <Link to={`/detectors/${det.id}/configure`} className="block p-4">
                 {/* Description */}
                 {det.description && (
                   <p className="text-xs text-gray-400 mb-3 line-clamp-2">{det.description}</p>
@@ -615,8 +667,8 @@ const DetectorsPage: React.FC = () => {
                     Configure →
                   </span>
                 </div>
-              </div>
-            </Link>
+              </Link>
+            </div>
           ))}
         </div>
       )}

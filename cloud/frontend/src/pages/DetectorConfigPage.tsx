@@ -1122,13 +1122,21 @@ const DetectorAlertsConfig = ({ detectorId }: { detectorId: string }) => {
                         </>
                     )}
 
-                    <button
-                        onClick={saveAlertConfig}
-                        disabled={saving}
-                        className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-6 rounded transition disabled:bg-gray-500"
-                    >
-                        {saving ? 'Saving...' : 'Save Alert Configuration'}
-                    </button>
+                    <div className="flex space-x-4">
+                        <button
+                            onClick={saveAlertConfig}
+                            disabled={saving}
+                            className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-6 rounded transition disabled:bg-gray-500"
+                        >
+                            {saving ? 'Saving...' : 'Save Alert Configuration'}
+                        </button>
+                        <a
+                            href={`/detectors/${detectorId}/alert-config`}
+                            className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded transition inline-block"
+                        >
+                            Advanced Alert Settings
+                        </a>
+                    </div>
                 </div>
             </Card>
 

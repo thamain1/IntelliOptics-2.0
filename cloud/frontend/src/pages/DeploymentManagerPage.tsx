@@ -7,20 +7,13 @@ import 'react-toastify/dist/ReactToastify.css';
 interface Detector {
   id: string;
   name: string;
+  group_name?: string;
 }
 
 interface Hub {
   id: string;
   name: string;
 }
-
-// --- Helper Components ---
-const ColumnCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="bg-gray-800 rounded-lg p-4 h-full flex flex-col">
-    <h2 className="text-lg font-semibold text-white mb-2">{title}</h2>
-    <div className="overflow-y-auto flex-grow pr-2">{children}</div>
-  </div>
-);
 
 interface Camera {
   id: string;
@@ -41,6 +34,15 @@ const DeploymentManagerPage = () => {
   const [generatedConfig, setGeneratedConfig] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [isDeploying, setIsDeploying] = useState(false);
+  const [groupFilter, setGroupFilter] = useState<string>('all');
+
+  // Get unique groups from detectors
+  const groups = Array.from(new Set(detectors.map(d => d.group_name).filter(Boolean))) as string[];
+
+  // Filter detectors by selected group
+  const filteredDetectors = groupFilter === 'all'
+    ? detectors
+    : detectors.filter(d => d.group_name === groupFilter);
 
   // Fetch initial data for detectors and hubs
   useEffect(() => {
@@ -180,83 +182,109 @@ const DeploymentManagerPage = () => {
   }
 
   return (
-    <div className="p-8 bg-gray-900 text-gray-300 min-h-screen">
+    <div className="p-8 bg-gray-900 text-gray-300 min-h-screen flex flex-col">
       <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} />
-      <header className="mb-8">
+      <header className="mb-6">
         <h1 className="text-3xl font-bold text-white">Deployment Manager</h1>
         <p className="text-gray-400">Assign detectors and cameras to your edge devices.</p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-96">
-        <ColumnCard title="1. Select a Detector">
-          <ul className="space-y-2">
-            {detectors.map((d) => (
-              <li key={d.id}
-                  className={`p-2 rounded cursor-pointer transition-colors ${selectedDetector === d.id ? 'bg-blue-600 text-white shadow-lg border-l-4 border-blue-300' : 'bg-gray-700 hover:bg-gray-600 border-l-4 border-transparent'}`}
-                  onClick={() => setSelectedDetector(d.id)}>
-                {d.name}
-              </li>
-            ))}
-          </ul>
-        </ColumnCard>
+      {/* Action buttons - moved to top */}
+      <div className="mb-6 flex space-x-4">
+        <button onClick={handlePreview} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded transition-transform transform hover:scale-105">
+          Preview Config
+        </button>
+        <button onClick={handleDeploy} disabled={isDeploying} className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded disabled:bg-gray-500 disabled:cursor-not-allowed transition-transform transform hover:scale-105">
+          {isDeploying ? 'Deploying...' : `Deploy to ${selectedHubs.size} Device(s)`}
+        </button>
+      </div>
 
-        <ColumnCard title="2. Select Edge Devices (Hubs)">
-          <ul className="space-y-2">
-            {hubs.map((h) => (
-              <li key={h.id}
-                  className={`p-2 rounded cursor-pointer flex items-center transition-colors ${selectedHubs.has(h.id) ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}
-                  onClick={() => handleHubSelection(h.id)}>
-                <input type="checkbox" readOnly checked={selectedHubs.has(h.id)} className="mr-3 h-4 w-4 rounded-sm border-gray-500 bg-gray-600 accent-blue-500" />
-                {h.name}
-              </li>
-            ))}
-          </ul>
-        </ColumnCard>
-
-        <ColumnCard title="3. Assign Cameras">
-          {cameras.length === 0 ? (
-            <div className="text-gray-500 h-full flex items-center justify-center">
-              <p className="text-center italic">Select edge devices to view available cameras.</p>
-            </div>
-          ) : (
+      {/* Three-column selection grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-grow overflow-hidden">
+        {/* Column 1: Detectors */}
+        <div className="bg-gray-800 rounded-lg p-4 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex items-center justify-between mb-2 flex-shrink-0">
+            <h2 className="text-lg font-semibold text-white">1. Select a Detector</h2>
+            {groups.length > 0 && (
+              <select
+                value={groupFilter}
+                onChange={(e) => setGroupFilter(e.target.value)}
+                className="bg-gray-700 text-white text-sm rounded px-2 py-1 border border-gray-600 focus:outline-none focus:border-blue-500"
+              >
+                <option value="all">All Groups</option>
+                {groups.map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+            )}
+          </div>
+          <div className="overflow-y-auto flex-grow pr-2">
             <ul className="space-y-2">
-              {cameras.map((c) => (
-                <li key={c.id || c.name}
-                    className={`p-2 rounded cursor-pointer flex items-center transition-colors ${selectedCameras.has(c.id || c.name) ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}
-                    onClick={() => handleCameraSelection(c.id || c.name)}>
-                  <input type="checkbox" readOnly checked={selectedCameras.has(c.id || c.name)} className="mr-3 h-4 w-4 rounded-sm border-gray-500 bg-gray-600 accent-blue-500" />
-                  <div>
-                    <p className="text-sm font-bold">{c.name}</p>
-                    <p className="text-xs opacity-75">{c.hub_name}</p>
-                  </div>
+              {filteredDetectors.map((d) => (
+                <li key={d.id}
+                    className={`p-2 rounded cursor-pointer transition-colors ${selectedDetector === d.id ? 'bg-blue-600 text-white shadow-lg border-l-4 border-blue-300' : 'bg-gray-700 hover:bg-gray-600 border-l-4 border-transparent'}`}
+                    onClick={() => setSelectedDetector(d.id)}>
+                  <span>{d.name}</span>
+                  {d.group_name && <span className="text-xs text-gray-400 ml-2">({d.group_name})</span>}
                 </li>
               ))}
             </ul>
-          )}
-        </ColumnCard>
-      </div>
-      
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <div className="flex space-x-4">
-              <button onClick={handlePreview} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded transition-transform transform hover:scale-105">
-                  Preview Config
-              </button>
-              <button onClick={handleDeploy} disabled={isDeploying} className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded disabled:bg-gray-500 disabled:cursor-not-allowed transition-transform transform hover:scale-105">
-                  {isDeploying ? 'Deploying...' : `Deploy to ${selectedHubs.size} Device(s)`}
-              </button>
           </div>
         </div>
-        
-        {generatedConfig && (
-            <div className="bg-gray-800 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-white mb-2">Generated `edge-config.yaml` Preview</h3>
-            <pre className="bg-gray-900 p-4 rounded text-sm text-yellow-300 overflow-auto max-h-96">
-                <code>{generatedConfig}</code>
-            </pre>
-            </div>
-        )}
+
+        {/* Column 2: Hubs */}
+        <div className="bg-gray-800 rounded-lg p-4 flex flex-col min-h-0 overflow-hidden">
+          <h2 className="text-lg font-semibold text-white mb-2 flex-shrink-0">2. Select Edge Devices (Hubs)</h2>
+          <div className="overflow-y-auto flex-grow pr-2">
+            <ul className="space-y-2">
+              {hubs.map((h) => (
+                <li key={h.id}
+                    className={`p-2 rounded cursor-pointer flex items-center transition-colors ${selectedHubs.has(h.id) ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}
+                    onClick={() => handleHubSelection(h.id)}>
+                  <input type="checkbox" readOnly checked={selectedHubs.has(h.id)} className="mr-3 h-4 w-4 rounded-sm border-gray-500 bg-gray-600 accent-blue-500" />
+                  {h.name}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* Column 3: Cameras */}
+        <div className="bg-gray-800 rounded-lg p-4 flex flex-col min-h-0 overflow-hidden">
+          <h2 className="text-lg font-semibold text-white mb-2 flex-shrink-0">3. Assign Cameras</h2>
+          <div className="overflow-y-auto flex-grow pr-2">
+            {cameras.length === 0 ? (
+              <div className="text-gray-500 h-full flex items-center justify-center">
+                <p className="text-center italic">Select edge devices to view available cameras.</p>
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {cameras.map((c) => (
+                  <li key={c.id || c.name}
+                      className={`p-2 rounded cursor-pointer flex items-center transition-colors ${selectedCameras.has(c.id || c.name) ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}
+                      onClick={() => handleCameraSelection(c.id || c.name)}>
+                    <input type="checkbox" readOnly checked={selectedCameras.has(c.id || c.name)} className="mr-3 h-4 w-4 rounded-sm border-gray-500 bg-gray-600 accent-blue-500" />
+                    <div>
+                      <p className="text-sm font-bold">{c.name}</p>
+                      <p className="text-xs opacity-75">{c.hub_name}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* Config preview section */}
+      {generatedConfig && (
+        <div className="mt-6 bg-gray-800 rounded-lg p-4">
+          <h3 className="text-lg font-semibold text-white mb-2">Generated `edge-config.yaml` Preview</h3>
+          <pre className="bg-gray-900 p-4 rounded text-sm text-yellow-300 overflow-auto max-h-96">
+            <code>{generatedConfig}</code>
+          </pre>
+        </div>
+      )}
     </div>
   );
 };

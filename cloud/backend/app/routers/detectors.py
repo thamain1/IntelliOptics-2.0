@@ -23,9 +23,10 @@ def list_detector_groups(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ) -> List[str]:
-    """Return a list of all unique detector group names."""
+    """Return a list of all unique detector group names (excludes deleted detectors)."""
     groups = db.query(models.Detector.group_name).filter(
-        models.Detector.group_name.isnot(None)
+        models.Detector.group_name.isnot(None),
+        models.Detector.deleted_at.is_(None)
     ).distinct().all()
     return [g[0] for g in groups if g[0]]
 
@@ -33,11 +34,14 @@ def list_detector_groups(
 @router.get("/", response_model=List[schemas.DetectorOut])
 def list_detectors(
     group_name: Optional[str] = None,
+    include_deleted: bool = False,
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ) -> List[models.Detector]:
-    """Return all detectors, optionally filtered by group."""
+    """Return all detectors, optionally filtered by group. Deleted detectors excluded by default."""
     query = db.query(models.Detector)
+    if not include_deleted:
+        query = query.filter(models.Detector.deleted_at.is_(None))
     if group_name:
         query = query.filter(models.Detector.group_name == group_name)
     return query.all()
@@ -107,14 +111,71 @@ def update_detector(
     det = db.query(models.Detector).filter(models.Detector.id == detector_id).first()
     if not det:
         raise HTTPException(status_code=404, detail="Detector not found")
-    
+
     update_data = payload.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(det, key, value)
-        
+
     db.commit()
     db.refresh(det)
     return det
+
+
+@router.delete("/{detector_id}")
+def delete_detector(
+    detector_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_admin),
+):
+    """
+    Soft delete a detector. The detector and all its historical data (queries,
+    escalations, etc.) are preserved but the detector is hidden from normal listings.
+    Use include_deleted=true on list endpoint to see deleted detectors.
+    Use POST /{detector_id}/restore to restore a deleted detector.
+    """
+    from datetime import datetime
+
+    det = db.query(models.Detector).filter(models.Detector.id == detector_id).first()
+    if not det:
+        raise HTTPException(status_code=404, detail="Detector not found")
+
+    if det.deleted_at is not None:
+        raise HTTPException(status_code=400, detail="Detector is already deleted")
+
+    det.deleted_at = datetime.utcnow()
+    db.commit()
+
+    return {
+        "message": "Detector deleted successfully",
+        "id": detector_id,
+        "deleted_at": det.deleted_at.isoformat(),
+        "note": "Historical data (queries, escalations) preserved. Use /restore to undo."
+    }
+
+
+@router.post("/{detector_id}/restore")
+def restore_detector(
+    detector_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_admin),
+):
+    """
+    Restore a soft-deleted detector, making it visible again in listings.
+    """
+    det = db.query(models.Detector).filter(models.Detector.id == detector_id).first()
+    if not det:
+        raise HTTPException(status_code=404, detail="Detector not found")
+
+    if det.deleted_at is None:
+        raise HTTPException(status_code=400, detail="Detector is not deleted")
+
+    det.deleted_at = None
+    db.commit()
+
+    return {
+        "message": "Detector restored successfully",
+        "id": detector_id
+    }
 
 
 @router.post("/{detector_id}/model", response_model=schemas.DetectorOut)

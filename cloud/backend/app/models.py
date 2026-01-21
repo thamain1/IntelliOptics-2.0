@@ -34,11 +34,13 @@ class Detector(Base):
 
     id: str = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name: str = Column(Text, nullable=False)
+    description: str = Column(Text, nullable=True)
     mode: str = Column(Text, nullable=False, default="BINARY")
     query_text: str = Column(Text, nullable=False)
     threshold: float = Column(Float, nullable=False, default=0.75)
     status: str = Column(Text, nullable=False, default="active")
     created_at: datetime = Column(DateTime, default=datetime.utcnow)
+    deleted_at: datetime = Column(DateTime, nullable=True)  # Soft delete: NULL = active, timestamp = deleted
     
     confidence_threshold: float = Column(Float, default=0.75)
     escalation_type: str = Column(Text, nullable=True)
@@ -101,18 +103,31 @@ class DetectorAlertConfig(Base):
     detector_id: str = Column(String(36), ForeignKey("detectors.id", ondelete="CASCADE"), unique=True, nullable=False)
 
     enabled: bool = Column(Boolean, default=False)
+    alert_name: str = Column(String(200), nullable=True)  # Human-readable alert name
 
-    # Alert condition (when to trigger)
-    condition_type: str = Column(String(50), default="LABEL_MATCH")  # LABEL_MATCH, CONFIDENCE_THRESHOLD, ALWAYS
+    # Alert condition (when to trigger) - Boolean logic builder
+    condition_type: str = Column(String(50), default="LABEL_MATCH")  # LABEL_MATCH, CONFIDENCE_ABOVE, CONFIDENCE_BELOW, ALWAYS
     condition_value: str = Column(String(200), nullable=True)  # e.g., "YES", "Person", "0.9"
+    consecutive_count: int = Column(Integer, default=1)  # Require X consecutive matches
+    time_window_minutes: int = Column(Integer, nullable=True)  # Alternative: X matches within Y minutes
+    confirm_with_cloud: bool = Column(Boolean, default=False)  # Confirm with cloud labelers first
 
-    # Recipients
+    # Recipients - Email
     alert_emails: list = Column(JSONB, default=list)  # List of email addresses
-    alert_webhooks: list = Column(JSONB, default=list)  # List of webhook URLs (future)
+
+    # Recipients - SMS
+    alert_phones: list = Column(JSONB, default=list)  # List of phone numbers (E.164 format)
+    include_image_sms: bool = Column(Boolean, default=True)  # Include image in SMS (MMS)
+
+    # Recipients - Webhook
+    alert_webhooks: list = Column(JSONB, default=list)  # List of webhook URLs
+    webhook_template: str = Column(Text, nullable=True)  # Jinja template for webhook body
+    webhook_headers: dict = Column(JSONB, nullable=True)  # Custom headers for webhook
 
     # Alert settings
     severity: str = Column(String(20), default="warning")  # critical, warning, info
     cooldown_minutes: int = Column(Integer, default=5)  # Don't spam - min time between same alert
+    include_image: bool = Column(Boolean, default=True)  # Include image in email alerts
     custom_message: str = Column(Text, nullable=True)  # Custom alert message template
 
     # Metadata

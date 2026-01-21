@@ -155,6 +155,7 @@ class DetectorOut(BaseModel):
     primary_model_blob_path: Optional[str]
     oodd_model_blob_path: Optional[str]
     created_at: datetime
+    deleted_at: Optional[datetime] = None
     config: Optional[DetectorConfigOut] = None
 
 
@@ -480,12 +481,21 @@ class DetectorAlertConfigOut(BaseModel):
     id: str
     detector_id: str
     enabled: bool
-    condition_type: str  # LABEL_MATCH, CONFIDENCE_THRESHOLD, ALWAYS
+    alert_name: Optional[str] = None
+    condition_type: str  # LABEL_MATCH, CONFIDENCE_ABOVE, CONFIDENCE_BELOW, ALWAYS
     condition_value: Optional[str]
-    alert_emails: list[str]
-    alert_webhooks: list[str]
+    consecutive_count: int = 1
+    time_window_minutes: Optional[int] = None
+    confirm_with_cloud: bool = False
+    alert_emails: list[str] = []
+    alert_phones: list[str] = []
+    include_image_sms: bool = True
+    alert_webhooks: list[str] = []
+    webhook_template: Optional[str] = None
+    webhook_headers: Optional[dict] = None
     severity: str  # critical, warning, info
     cooldown_minutes: int
+    include_image: bool = True
     custom_message: Optional[str]
     created_at: datetime
     updated_at: datetime
@@ -494,12 +504,21 @@ class DetectorAlertConfigOut(BaseModel):
 class DetectorAlertConfigUpdate(BaseModel):
     """Schema for updating detector alert configuration."""
     enabled: Optional[bool] = None
+    alert_name: Optional[str] = None
     condition_type: Optional[str] = None
     condition_value: Optional[str] = None
+    consecutive_count: Optional[int] = Field(None, ge=1, le=100)
+    time_window_minutes: Optional[int] = Field(None, ge=1, le=1440)
+    confirm_with_cloud: Optional[bool] = None
     alert_emails: Optional[list[str]] = None
+    alert_phones: Optional[list[str]] = None
+    include_image_sms: Optional[bool] = None
     alert_webhooks: Optional[list[str]] = None
+    webhook_template: Optional[str] = None
+    webhook_headers: Optional[dict] = None
     severity: Optional[str] = None
     cooldown_minutes: Optional[int] = Field(None, ge=1, le=1440)  # 1 min to 24 hours
+    include_image: Optional[bool] = None
     custom_message: Optional[str] = None
 
 

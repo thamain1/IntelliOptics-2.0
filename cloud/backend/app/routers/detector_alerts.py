@@ -43,12 +43,21 @@ def get_detector_alert_config(
         config = models.DetectorAlertConfig(
             detector_id=detector_id,
             enabled=False,
+            alert_name=f"Alert for {detector.name}",
             condition_type="LABEL_MATCH",
             condition_value="YES",
+            consecutive_count=1,
+            time_window_minutes=None,
+            confirm_with_cloud=False,
             alert_emails=[],
+            alert_phones=[],
+            include_image_sms=True,
             alert_webhooks=[],
+            webhook_template=None,
+            webhook_headers=None,
             severity="warning",
             cooldown_minutes=5,
+            include_image=True,
             custom_message=None
         )
         db.add(config)
@@ -80,12 +89,21 @@ def update_detector_alert_config(
         config = models.DetectorAlertConfig(
             detector_id=detector_id,
             enabled=config_update.enabled if config_update.enabled is not None else False,
+            alert_name=config_update.alert_name or f"Alert for {detector.name}",
             condition_type=config_update.condition_type or "LABEL_MATCH",
             condition_value=config_update.condition_value,
+            consecutive_count=config_update.consecutive_count or 1,
+            time_window_minutes=config_update.time_window_minutes,
+            confirm_with_cloud=config_update.confirm_with_cloud or False,
             alert_emails=config_update.alert_emails or [],
+            alert_phones=config_update.alert_phones or [],
+            include_image_sms=config_update.include_image_sms if config_update.include_image_sms is not None else True,
             alert_webhooks=config_update.alert_webhooks or [],
+            webhook_template=config_update.webhook_template,
+            webhook_headers=config_update.webhook_headers,
             severity=config_update.severity or "warning",
             cooldown_minutes=config_update.cooldown_minutes or 5,
+            include_image=config_update.include_image if config_update.include_image is not None else True,
             custom_message=config_update.custom_message
         )
         db.add(config)
@@ -93,18 +111,36 @@ def update_detector_alert_config(
         # Update existing config
         if config_update.enabled is not None:
             config.enabled = config_update.enabled
+        if config_update.alert_name is not None:
+            config.alert_name = config_update.alert_name
         if config_update.condition_type is not None:
             config.condition_type = config_update.condition_type
         if config_update.condition_value is not None:
             config.condition_value = config_update.condition_value
+        if config_update.consecutive_count is not None:
+            config.consecutive_count = config_update.consecutive_count
+        if config_update.time_window_minutes is not None:
+            config.time_window_minutes = config_update.time_window_minutes
+        if config_update.confirm_with_cloud is not None:
+            config.confirm_with_cloud = config_update.confirm_with_cloud
         if config_update.alert_emails is not None:
             config.alert_emails = config_update.alert_emails
+        if config_update.alert_phones is not None:
+            config.alert_phones = config_update.alert_phones
+        if config_update.include_image_sms is not None:
+            config.include_image_sms = config_update.include_image_sms
         if config_update.alert_webhooks is not None:
             config.alert_webhooks = config_update.alert_webhooks
+        if config_update.webhook_template is not None:
+            config.webhook_template = config_update.webhook_template
+        if config_update.webhook_headers is not None:
+            config.webhook_headers = config_update.webhook_headers
         if config_update.severity is not None:
             config.severity = config_update.severity
         if config_update.cooldown_minutes is not None:
             config.cooldown_minutes = config_update.cooldown_minutes
+        if config_update.include_image is not None:
+            config.include_image = config_update.include_image
         if config_update.custom_message is not None:
             config.custom_message = config_update.custom_message
 

@@ -18,6 +18,7 @@ import DeploymentManagerPage from './pages/DeploymentManagerPage';
 import CameraInspectionPage from './pages/CameraInspectionPage';
 import DetectorAlertsPage from './pages/DetectorAlertsPage';
 import DemoStreamPage from './pages/DemoStreamPage';
+import DetectorAlertConfigPage from './pages/DetectorAlertConfigPage';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -113,35 +114,40 @@ function App() {
             <Link to="/" className="text-xl font-bold text-blue-500">
               IntelliOptics 2.0
             </Link>
+            {/* Primary Operations */}
             <Link to="/detectors" className="text-gray-300 hover:text-blue-400">
               Detectors
             </Link>
+            <Link to="/deployments" className="text-gray-300 hover:text-blue-400">
+              Deployments
+            </Link>
+            <Link to="/hubs" className="text-gray-300 hover:text-blue-400">
+              Hubs
+            </Link>
+            {/* Monitoring & Analysis */}
+            <span className="text-gray-600">|</span>
             <Link to="/queries" className="text-gray-300 hover:text-blue-400">
               Queries
             </Link>
             <Link to="/escalations" className="text-gray-300 hover:text-blue-400">
               Escalations
             </Link>
-            <Link to="/hubs" className="text-gray-300 hover:text-blue-400">
-              Hubs
+            <Link to="/detector-alerts" className="text-gray-300 hover:text-blue-400">
+              Alerts
             </Link>
             <Link to="/camera-inspection" className="text-gray-300 hover:text-blue-400">
               Camera Health
             </Link>
-            <Link to="/detector-alerts" className="text-gray-300 hover:text-blue-400">
-              Detector Alerts
-            </Link>
-            <Link to="/demo" className="text-gray-300 hover:text-blue-400">
-              Demo
+            {/* Settings & Tools */}
+            <span className="text-gray-600">|</span>
+            <Link to="/settings/alerts" className="text-gray-300 hover:text-blue-400">
+              Settings
             </Link>
             <Link to="/admin" className="text-gray-300 hover:text-blue-400">
               Admin
             </Link>
-            <Link to="/settings/alerts" className="text-gray-300 hover:text-blue-400">
-              Alerts
-            </Link>
-            <Link to="/deployments" className="text-gray-300 hover:text-blue-400">
-              Deployments
+            <Link to="/demo" className="text-gray-300 hover:text-blue-400">
+              Demo
             </Link>
           </div>
           <button onClick={handleLogout} className="text-red-400 hover:text-red-300 font-bold">
@@ -154,6 +160,7 @@ function App() {
           <Route path="/" element={<DetectorsPage />} />
           <Route path="/detectors" element={<DetectorsPage />} />
           <Route path="/detectors/:id/configure" element={<DetectorConfigPage />} />
+          <Route path="/detectors/:detectorId/alert-config" element={<DetectorAlertConfigPage />} />
           <Route path="/queries" element={<QueryHistoryPage />} />
           <Route path="/escalations" element={<EscalationQueuePage />} />
           <Route path="/hubs" element={<HubStatusPage />} />

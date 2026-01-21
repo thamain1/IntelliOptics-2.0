@@ -3,15 +3,111 @@ Detector Alerting Utilities
 
 This module handles the logic for triggering detector-based alerts.
 Called after a query result is processed to determine if an alert should be sent.
+Supports consecutive count logic (e.g., "YES 2 times in a row"), email, SMS, and webhook alerts.
 """
 import logging
+import os
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Optional
 from sqlalchemy.orm import Session
+from jinja2 import Template
 
 from .. import models
+from ..config import get_settings
 
 logger = logging.getLogger(__name__)
+
+# Load email template
+TEMPLATE_DIR = Path(__file__).parent.parent / "templates"
+
+
+def get_email_template() -> str:
+    """Load the alert email HTML template."""
+    template_path = TEMPLATE_DIR / "alert_email.html"
+    if template_path.exists():
+        return template_path.read_text()
+    # Fallback to simple template
+    return """
+    <html>
+    <body style="font-family: Arial, sans-serif; background-color: #1a1a2e; color: white; padding: 20px;">
+        <h2>IntelliOptics Alert</h2>
+        <h3>{{ alert_title }}</h3>
+        {% if image_url %}<img src="{{ image_url }}" style="max-width: 400px;">{% endif %}
+        <p><strong>Detector:</strong> {{ detector_name }}</p>
+        <p><strong>Detection:</strong> {{ detection_label }} ({{ confidence }}%)</p>
+        <p><strong>Time:</strong> {{ timestamp }}</p>
+    </body>
+    </html>
+    """
+
+
+def check_consecutive_matches(
+    detector_id: str,
+    result_label: str,
+    required_count: int,
+    db: Session
+) -> bool:
+    """
+    Check if the required number of consecutive matches has been reached.
+
+    Args:
+        detector_id: UUID of the detector
+        result_label: The label to check for consecutive matches
+        required_count: Number of consecutive matches required
+        db: Database session
+
+    Returns:
+        True if consecutive count requirement is met
+    """
+    if required_count <= 1:
+        return True
+
+    # Get the last N queries for this detector
+    recent_queries = db.query(models.Query).filter(
+        models.Query.detector_id == detector_id
+    ).order_by(models.Query.created_at.desc()).limit(required_count).all()
+
+    if len(recent_queries) < required_count:
+        return False
+
+    # Check if all have the same label
+    for query in recent_queries:
+        if query.result != result_label:
+            return False
+
+    return True
+
+
+def check_time_window_matches(
+    detector_id: str,
+    result_label: str,
+    required_count: int,
+    time_window_minutes: int,
+    db: Session
+) -> bool:
+    """
+    Check if required number of matches occurred within time window.
+
+    Args:
+        detector_id: UUID of the detector
+        result_label: The label to check for
+        required_count: Number of matches required
+        time_window_minutes: Time window in minutes
+        db: Database session
+
+    Returns:
+        True if count requirement is met within time window
+    """
+    cutoff_time = datetime.utcnow() - timedelta(minutes=time_window_minutes)
+
+    count = db.query(models.Query).filter(
+        models.Query.detector_id == detector_id,
+        models.Query.result == result_label,
+        models.Query.created_at >= cutoff_time
+    ).count()
+
+    return count >= required_count
 
 
 def should_trigger_alert(
@@ -40,30 +136,58 @@ def should_trigger_alert(
     if not config or not config.enabled:
         return False
 
-    # Check condition type
+    # Check base condition
+    condition_met = False
+
     if config.condition_type == "ALWAYS":
-        return True
+        condition_met = True
 
     elif config.condition_type == "LABEL_MATCH":
         # Alert if label matches the configured value
         if config.condition_value:
-            return result_label.upper() == config.condition_value.upper()
-        return False
+            condition_met = result_label.upper() == config.condition_value.upper()
 
-    elif config.condition_type == "CONFIDENCE_THRESHOLD":
+    elif config.condition_type == "CONFIDENCE_ABOVE":
         # Alert if confidence exceeds threshold
         if config.condition_value:
             try:
                 threshold = float(config.condition_value)
-                return confidence >= threshold
+                condition_met = confidence >= threshold
             except ValueError:
                 logger.error(f"Invalid confidence threshold: {config.condition_value}")
                 return False
+
+    elif config.condition_type == "CONFIDENCE_BELOW":
+        # Alert if confidence is below threshold
+        if config.condition_value:
+            try:
+                threshold = float(config.condition_value)
+                condition_met = confidence < threshold
+            except ValueError:
+                logger.error(f"Invalid confidence threshold: {config.condition_value}")
+                return False
+
+    if not condition_met:
         return False
 
-    # Unknown condition type
-    logger.warning(f"Unknown condition type: {config.condition_type}")
-    return False
+    # Check consecutive count requirement
+    consecutive_count = config.consecutive_count or 1
+    time_window = getattr(config, 'time_window_minutes', None)
+
+    if time_window and time_window > 0:
+        # Use time window mode
+        if not check_time_window_matches(
+            detector_id, result_label, consecutive_count, time_window, db
+        ):
+            logger.debug(f"Time window count not met: need {consecutive_count} in {time_window} minutes")
+            return False
+    elif consecutive_count > 1:
+        # Use consecutive mode
+        if not check_consecutive_matches(detector_id, result_label, consecutive_count, db):
+            logger.debug(f"Consecutive count not met: need {consecutive_count} consecutive")
+            return False
+
+    return True
 
 
 def check_cooldown(
@@ -133,31 +257,171 @@ def create_alert_message(
     return base_message
 
 
+def render_email_html(
+    alert_title: str,
+    detector_name: str,
+    detection_label: str,
+    confidence: float,
+    camera_name: Optional[str] = None,
+    location: Optional[str] = None,
+    query_id: Optional[str] = None,
+    image_url: Optional[str] = None,
+    severity: str = "warning",
+    custom_message: Optional[str] = None,
+    logo_url: Optional[str] = None
+) -> str:
+    """
+    Render the HTML email template with alert data.
+
+    Args:
+        alert_title: Main alert title
+        detector_name: Name of the detector
+        detection_label: Detection result label
+        confidence: Confidence score (0-1)
+        camera_name: Optional camera name
+        location: Optional location string
+        query_id: Optional query ID
+        image_url: Optional detection image URL
+        severity: Alert severity (critical, warning, info)
+        custom_message: Optional custom message
+        logo_url: Optional logo URL
+
+    Returns:
+        Rendered HTML string
+    """
+    template_str = get_email_template()
+    template = Template(template_str)
+
+    # Default logo URL (from Azure Blob Storage)
+    if not logo_url:
+        logo_url = "https://intelliopticsweb37558.blob.core.windows.net/images/intellioptics-logo.png"
+
+    return template.render(
+        alert_title=alert_title,
+        detector_name=detector_name,
+        detection_label=detection_label,
+        confidence=int(confidence * 100),
+        camera_name=camera_name,
+        location=location,
+        query_id=query_id,
+        image_url=image_url,
+        severity=severity,
+        custom_message=custom_message,
+        logo_url=logo_url,
+        timestamp=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+    )
+
+
 def send_alert_emails(
     recipients: list[str],
     subject: str,
-    message: str,
-    image_url: Optional[str] = None
-):
+    html_content: str,
+) -> bool:
     """
-    Send alert emails to recipients.
+    Send alert emails to recipients using SendGrid.
 
     Args:
         recipients: List of email addresses
         subject: Email subject
-        message: Email body
-        image_url: Optional URL to detection image
+        html_content: HTML email body
+
+    Returns:
+        True if email was sent successfully
     """
     if not recipients:
         logger.warning("No recipients configured for alert")
-        return
+        return False
 
-    # TODO: Integrate with actual email sending (SendGrid, alerts.py, etc.)
-    logger.info(f"Would send detector alert email to {recipients}: {subject}")
-    logger.info(f"Message: {message}")
+    settings = get_settings()
+    api_key = settings.alert.sendgrid_api_key
+    from_email = settings.alert.from_email or "alerts@4wardmotions.com"
 
-    # For now, just log that we would send emails
-    # In production, integrate with SendGrid or existing alert system
+    if not api_key:
+        logger.warning("SendGrid API key not configured - email not sent")
+        return False
+
+    try:
+        from sendgrid import SendGridAPIClient
+        from sendgrid.helpers.mail import Mail, Email, To, Content
+
+        sg = SendGridAPIClient(api_key)
+
+        message = Mail(
+            from_email=Email(from_email),
+            to_emails=[To(addr) for addr in recipients],
+            subject=subject,
+            html_content=html_content
+        )
+
+        response = sg.send(message)
+        logger.info(f"Sent alert email to {recipients}, status: {response.status_code}")
+        return response.status_code in [200, 201, 202]
+
+    except ImportError:
+        logger.error("SendGrid library not installed")
+        return False
+    except Exception as e:
+        logger.error(f"Failed to send email via SendGrid: {e}")
+        return False
+
+
+def send_alert_sms(
+    phone_numbers: list[str],
+    message: str,
+    image_url: Optional[str] = None,
+    include_image: bool = True
+) -> bool:
+    """
+    Send SMS alerts using Twilio.
+
+    Args:
+        phone_numbers: List of phone numbers in E.164 format
+        message: SMS message text
+        image_url: Optional image URL for MMS
+        include_image: Whether to include image (MMS)
+
+    Returns:
+        True if SMS was sent successfully
+    """
+    if not phone_numbers:
+        return False
+
+    settings = get_settings()
+    account_sid = settings.alert.twilio_account_sid
+    auth_token = settings.alert.twilio_auth_token
+    from_phone = settings.alert.alert_phone_from
+
+    if not all([account_sid, auth_token, from_phone]):
+        logger.warning("Twilio credentials not configured - SMS not sent")
+        return False
+
+    try:
+        from twilio.rest import Client
+
+        client = Client(account_sid, auth_token)
+
+        for phone in phone_numbers:
+            kwargs = {
+                "from_": from_phone,
+                "to": phone,
+                "body": message
+            }
+
+            # Add image for MMS (US numbers only)
+            if include_image and image_url and phone.startswith("+1"):
+                kwargs["media_url"] = [image_url]
+
+            client.messages.create(**kwargs)
+            logger.info(f"Sent SMS alert to {phone}")
+
+        return True
+
+    except ImportError:
+        logger.error("Twilio library not installed")
+        return False
+    except Exception as e:
+        logger.error(f"Failed to send SMS via Twilio: {e}")
+        return False
 
 
 def trigger_detector_alert(
@@ -176,7 +440,7 @@ def trigger_detector_alert(
     1. Checks if alert should be triggered based on configuration
     2. Checks cooldown period
     3. Creates alert record
-    4. Sends email notifications (async)
+    4. Sends email and SMS notifications
 
     Args:
         detector_id: UUID of the detector
@@ -205,7 +469,6 @@ def trigger_detector_alert(
     ).first()
 
     if not config or not config.enabled:
-        # No alert config or alerts disabled
         return None
 
     # Check if alert should be triggered
@@ -227,7 +490,16 @@ def trigger_detector_alert(
         custom_message=config.custom_message
     )
 
+    # Generate image URL from blob path
+    image_url = None
+    if image_blob_path:
+        settings = get_settings()
+        # Construct public URL (adjust based on your blob storage setup)
+        image_url = f"https://intelliopticsweb37558.blob.core.windows.net/images/{image_blob_path}"
+
     # Create alert record
+    sent_to = (config.alert_emails or []) + (config.alert_phones or [])
+
     alert = models.DetectorAlert(
         detector_id=detector_id,
         query_id=query_id,
@@ -238,7 +510,7 @@ def trigger_detector_alert(
         detection_confidence=confidence,
         camera_name=camera_name,
         image_blob_path=image_blob_path,
-        sent_to=config.alert_emails,
+        sent_to=sent_to,
         email_sent=False
     )
 
@@ -248,23 +520,52 @@ def trigger_detector_alert(
 
     logger.info(f"Created alert {alert.id} for detector {detector.name}")
 
+    # Determine alert title
+    alert_name = getattr(config, 'alert_name', None) or f"{detector.name} Alert"
+    alert_title = f"{result_label} detected" if result_label else alert_name
+
     # Send email notifications
     if config.alert_emails:
         try:
-            subject = f"[{config.severity.upper()}] {detector.name} Alert"
+            subject = f"[{config.severity.upper()}] {alert_name}"
 
-            send_alert_emails(
-                recipients=config.alert_emails,
-                subject=subject,
-                message=message,
-                image_url=image_blob_path
+            # Render HTML email
+            include_image = getattr(config, 'include_image', True)
+            html_content = render_email_html(
+                alert_title=alert_title,
+                detector_name=detector.name,
+                detection_label=result_label,
+                confidence=confidence,
+                camera_name=camera_name,
+                query_id=query_id,
+                image_url=image_url if include_image else None,
+                severity=config.severity,
+                custom_message=config.custom_message
             )
 
-            alert.email_sent = True
-            alert.email_sent_at = datetime.utcnow()
-            db.commit()
+            if send_alert_emails(config.alert_emails, subject, html_content):
+                alert.email_sent = True
+                alert.email_sent_at = datetime.utcnow()
+                db.commit()
 
         except Exception as e:
             logger.error(f"Failed to send alert emails: {e}")
+
+    # Send SMS notifications
+    alert_phones = getattr(config, 'alert_phones', [])
+    if alert_phones:
+        try:
+            sms_message = f"IntelliOptics Alert: {message}"
+            include_image_sms = getattr(config, 'include_image_sms', True)
+
+            send_alert_sms(
+                phone_numbers=alert_phones,
+                message=sms_message,
+                image_url=image_url,
+                include_image=include_image_sms
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to send SMS alerts: {e}")
 
     return str(alert.id)

@@ -19,7 +19,8 @@ from .routers import (
     camera_inspection,
     detector_alerts,
     demo_streams,
-    annotations
+    annotations,
+    heartbeat,
 )
 from . import auth # Import the new auth module
 
@@ -61,6 +62,7 @@ def create_app() -> FastAPI:
     app.include_router(detector_alerts.router)  # Detector-based alerts
     app.include_router(demo_streams.router)  # YouTube demo streams
     app.include_router(annotations.router)  # Image annotations
+    app.include_router(heartbeat.router)  # Hub heartbeat (API key auth)
     from .routers import users, data_management
     app.include_router(users.router)
     app.include_router(data_management.router)  # Data retention & training export
