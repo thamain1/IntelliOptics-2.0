@@ -8,7 +8,7 @@
 
 IntelliOptics 2.0 is a complete rebuild of the IntelliOptics platform with a focus on:
 
-- **Edge-First Architecture**: Process images on-device with Primary + OODD ground truth models
+- **Edge-First Architecture**: Process images on-device with Primary + OODD models
 - **Confidence-Based Escalation**: Only questionable images (confidence < threshold) escalate to human review
 - **Detector-Centric**: Detectors control AI engagement, thresholds, and escalation logic
 - **No Kubernetes**: Simple Docker Compose deployment for stability and ease of use
