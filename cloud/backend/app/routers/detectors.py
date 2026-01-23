@@ -57,6 +57,7 @@ def create_detector(
     # 1. Create the detector
     det = models.Detector(
         name=payload.name,
+        description=payload.description,
         query_text=payload.query_text,
         group_name=payload.group_name,
         detector_metadata_serialized=payload.detector_metadata_serialized
