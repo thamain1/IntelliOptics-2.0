@@ -18,7 +18,7 @@ Get IntelliOptics 2.0 running in under 15 minutes.
 ### Edge Deployment
 
 ```bash
-cd "C:\Dev\IntelliOptics 2.0\edge"
+cd "C:\intellioptics-2.0\edge"
 cp .env.template .env
 ```
 
@@ -39,7 +39,7 @@ EDGE_DEVICE_NAME=Factory A - Line 1
 ### Cloud Deployment
 
 ```bash
-cd "C:\Dev\IntelliOptics 2.0\cloud"
+cd "C:\intellioptics-2.0\cloud"
 cp .env.template .env
 ```
 
@@ -158,7 +158,7 @@ cp your-oodd-model.onnx /opt/intellioptics/models/det_quality_check_001/oodd/1/m
 ## Step 5: Deploy Cloud (Central Web App)
 
 ```bash
-cd "C:\Dev\IntelliOptics 2.0\cloud"
+cd "C:\intellioptics-2.0\cloud"
 docker-compose up -d
 ```
 
@@ -188,7 +188,7 @@ curl http://localhost:8000/health
 ## Step 6: Deploy Edge
 
 ```bash
-cd "C:\Dev\IntelliOptics 2.0\edge"
+cd "C:\intellioptics-2.0\edge"
 docker-compose up -d
 ```
 
@@ -256,12 +256,12 @@ curl -X POST "http://localhost:30101/v1/image-queries?detector_id=det_quality_ch
 
 ```bash
 # Edge logs
-cd "C:\Dev\IntelliOptics 2.0\edge"
+cd "C:\intellioptics-2.0\edge"
 docker-compose logs -f edge-api
 docker-compose logs -f inference
 
 # Cloud logs
-cd "C:\Dev\IntelliOptics 2.0\cloud"
+cd "C:\intellioptics-2.0\cloud"
 docker-compose logs -f backend
 docker-compose logs -f worker
 ```

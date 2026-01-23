@@ -4,6 +4,8 @@
 
 Before installing, ensure you have:
 
+> **Important:** Clone or install to a path **without spaces** (e.g., `C:\intellioptics-2.0` not `C:\intellioptics 2.0`). Spaces in paths can cause issues with Docker and command-line tools.
+
 1. **Docker Desktop** - [Download](https://www.docker.com/products/docker-desktop)
 2. **Azure CLI** - [Install Guide](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
 3. **Azure Account** with access to:
@@ -102,6 +104,12 @@ docker compose -f docker-compose.prod.yml up -d
 ### Health check fails
 - Wait 30 seconds for services to fully start
 - Check logs: `docker compose -f docker-compose.prod.yml logs backend`
+
+### .env file not found
+- Ensure `.env` file exists in the `install` folder (same folder as `docker-compose.prod.yml`)
+- Copy from template: `copy .env.template .env`
+- On Windows, check for hidden `.txt` extension: `dir .env*`
+- **If path contains spaces:** Rename folder to remove spaces (e.g., `C:\intellioptics-2.0` instead of `C:\intellioptics 2.0`)
 
 ## Image Versions
 
