@@ -5,7 +5,7 @@ import axios from 'axios';
 // Set base URL for all axios requests to point to the backend API
 axios.defaults.baseURL = 'http://localhost:8000';
 
-import { msalInstance, login, logout } from './utils/auth';
+import { msalInstance, login, logout, isMsalConfigured } from './utils/auth';
 import LoginPage from './pages/LoginPage';
 import DetectorsPage from './pages/DetectorsPage';
 import QueryHistoryPage from './pages/QueryHistoryPage';
@@ -42,23 +42,25 @@ function App() {
         return;
     }
 
-    // Check if an account is cached
-    const account = msalInstance.getActiveAccount();
-    if (account) {
-      setIsAuthenticated(true);
-      // Acquire token silently
-      msalInstance
-        .acquireTokenSilent({
-          scopes: ['openid', 'profile', 'email'],
-          account,
-        })
-        .then((res) => {
-          setAccessToken(res.accessToken);
-          axios.defaults.headers.common['Authorization'] = `Bearer ${res.accessToken}`;
-        })
-        .catch(() => {
-          setIsAuthenticated(false);
-        });
+    // Only check MSAL if it's configured
+    if (isMsalConfigured && msalInstance) {
+      const account = msalInstance.getActiveAccount();
+      if (account) {
+        setIsAuthenticated(true);
+        // Acquire token silently
+        msalInstance
+          .acquireTokenSilent({
+            scopes: ['openid', 'profile', 'email'],
+            account,
+          })
+          .then((res) => {
+            setAccessToken(res.accessToken);
+            axios.defaults.headers.common['Authorization'] = `Bearer ${res.accessToken}`;
+          })
+          .catch(() => {
+            setIsAuthenticated(false);
+          });
+      }
     }
   }, []);
 

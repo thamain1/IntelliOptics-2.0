@@ -43,16 +43,16 @@ const DetectionParamsSchema = z.object({
 
 const DetectorConfigSchema = z.object({
   mode: z.string().default('BINARY'),
-  class_names: z.array(z.string()).optional().default([]),
-  per_class_thresholds: z.record(z.string(), z.number().min(0).max(1)).optional(),
+  class_names: z.array(z.string()).nullable().optional().transform(val => val ?? []),
+  per_class_thresholds: z.record(z.string(), z.number().min(0).max(1)).nullable().optional(),
   confidence_threshold: z.number().min(0).max(1).default(0.85),
   patience_time: z.number().min(0).default(30.0),
-  
-  model_input_config: ModelInputConfigSchema.default({}),
-  model_output_config: ModelOutputConfigSchema.default({}),
-  detection_params: DetectionParamsSchema.optional(),
 
-  edge_inference_config: EdgeInferenceConfigSchema.default({}),
+  model_input_config: ModelInputConfigSchema.nullable().optional().transform(val => val ?? {}),
+  model_output_config: ModelOutputConfigSchema.nullable().optional().transform(val => val ?? {}),
+  detection_params: DetectionParamsSchema.nullable().optional(),
+
+  edge_inference_config: EdgeInferenceConfigSchema.nullable().optional().transform(val => val ?? {}),
 });
 
 type DetectorConfigFormData = z.infer<typeof DetectorConfigSchema>;
@@ -242,10 +242,10 @@ const DetectorConfigPage = () => {
 
             // 1. Save Detector Info (including group)
             await axios.put(`/detectors/${detectorId}`, { name, description, group_name: group_name || null });
-            
+
             // 2. Save Detector Config
             await axios.put(`/detectors/${detectorId}/config`, configData);
-            
+
             toast.success('Configuration saved successfully!');
 
             // 3. Optional: Trigger Redeployment
@@ -255,10 +255,20 @@ const DetectorConfigPage = () => {
             }
 
             navigate('/detectors');
-        } catch (error) {
-            toast.error('Failed to save configuration.');
+        } catch (error: any) {
+            const errorMsg = error.response?.data?.detail || 'Failed to save configuration.';
+            toast.error(errorMsg);
             console.error('Error saving data:', error);
         }
+    };
+
+    // Handle form validation errors
+    const onFormError = (formErrors: any) => {
+        console.error('Form validation errors:', formErrors);
+        const errorMessages = Object.entries(formErrors)
+            .map(([field, error]: [string, any]) => `${field}: ${error.message}`)
+            .join(', ');
+        toast.error(`Validation failed: ${errorMessages || 'Please check the form fields.'}`);
     };
     
     if (isLoading) {
@@ -281,10 +291,10 @@ const DetectorConfigPage = () => {
                     <button type="button" onClick={() => navigate('/detectors')} className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition">
                         Cancel
                     </button>
-                    <button type="button" onClick={handleSubmit((data) => onSubmit(data, false))} disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded transition disabled:bg-gray-500">
+                    <button type="button" onClick={handleSubmit((data) => onSubmit(data, false), onFormError)} disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded transition disabled:bg-gray-500">
                         {isSubmitting ? 'Saving...' : 'Save'}
                     </button>
-                    <button type="button" onClick={handleSubmit((data) => onSubmit(data, true))} disabled={isSubmitting} className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded transition disabled:bg-gray-500">
+                    <button type="button" onClick={handleSubmit((data) => onSubmit(data, true), onFormError)} disabled={isSubmitting} className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded transition disabled:bg-gray-500">
                         {isSubmitting ? 'Deploying...' : 'Save & Deploy'}
                     </button>
                 </div>
