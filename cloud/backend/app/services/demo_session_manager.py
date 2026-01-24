@@ -38,14 +38,24 @@ def _process_inference_local(query_id: str, result_id: str, image_bytes: bytes, 
             return
 
         try:
-            # Get detector config for model path and class names
+            # Get detector and config for model path and class names
+            detector = db.query(models.Detector).filter(
+                models.Detector.id == detector_id
+            ).first()
             detector_config = db.query(models.DetectorConfig).filter(
                 models.DetectorConfig.detector_id == detector_id
             ).first()
 
+            # Use the actual model path from detector/config, fallback to default
+            model_path = (
+                (detector_config.primary_model_blob_path if detector_config else None) or
+                (detector.primary_model_blob_path if detector else None) or
+                f"{detector_id}/primary/model.onnx"
+            )
+
             config_data = {
                 "detector_id": detector_id,
-                "primary_model_blob_path": f"{detector_id}/primary/model.onnx",
+                "primary_model_blob_path": model_path,
                 "class_names": detector_config.class_names if detector_config else [],
                 "confidence_threshold": detector_config.confidence_threshold if detector_config else 0.5,
                 "detection_params": {
@@ -83,9 +93,9 @@ def _process_inference_local(query_id: str, result_id: str, image_bytes: bytes, 
 
             # Determine label and confidence from detections
             if detections:
-                best_detection = max(detections, key=lambda d: d.get("conf", 0))
+                best_detection = max(detections, key=lambda d: d.get("confidence", d.get("conf", 0)))
                 label = best_detection.get("label", "detected")
-                confidence = best_detection.get("conf", 0.0)
+                confidence = best_detection.get("confidence", best_detection.get("conf", 0.0))
             else:
                 label = "no_detection"
                 confidence = 0.0
@@ -118,7 +128,7 @@ def _process_inference_local(query_id: str, result_id: str, image_bytes: bytes, 
                         frame_number=result.frame_number,
                         capture_method=result.capture_method,
                         result_label=detection.get("label"),
-                        confidence=detection.get("conf", 0.0),
+                        confidence=detection.get("confidence", detection.get("conf", 0.0)),
                         status="DONE",
                         completed_at=datetime.utcnow()
                     )
