@@ -20,7 +20,7 @@ services:
       - cloud-net
 
   backend:
-    image: acrintellioptics.azurecr.io/intellioptics/backend:v2.0.1
+    image: acrintellioptics.azurecr.io/intellioptics/backend:v2.0.2
     container_name: intellioptics-cloud-backend
     ports:
       - "8000:8000"
