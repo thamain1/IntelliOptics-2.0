@@ -1,4 +1,7 @@
 """Diagnostic script to check user database status."""
+import sys
+sys.path.insert(0, '/app')
+
 from app.database import SessionLocal, engine
 from app.models import User
 

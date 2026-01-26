@@ -1,4 +1,7 @@
 """Create or reset the admin user."""
+import sys
+sys.path.insert(0, '/app')
+
 from app.database import SessionLocal, engine
 from app.models import User, Base
 from app.auth import get_password_hash
