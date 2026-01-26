@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..dependencies import get_db, get_current_admin
+from ..auth import get_password_hash
 
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -25,7 +26,8 @@ def create_user(payload: schemas.UserCreate, db: Session = Depends(get_db), admi
     existing = db.query(models.User).filter(models.User.email == payload.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="User already exists")
-    user = models.User(email=payload.email, roles=payload.roles)
+    hashed_password = get_password_hash(payload.password)
+    user = models.User(email=payload.email, hashed_password=hashed_password, roles=payload.roles)
     db.add(user)
     db.commit()
     db.refresh(user)
