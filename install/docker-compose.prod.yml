@@ -45,7 +45,7 @@ services:
       - cloud-net
 
   frontend:
-    image: acrintellioptics.azurecr.io/intellioptics/frontend:v2.0.1
+    image: acrintellioptics.azurecr.io/intellioptics/frontend:v2.0.2
     container_name: intellioptics-cloud-frontend
     ports:
       - "3000:80"

@@ -51,6 +51,7 @@ const AdminPage: React.FC = () => {
   // User management state
   const [users, setUsers] = useState<User[]>([]);
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [role, setRole] = useState('reviewer');
 
   // Data management state
@@ -120,8 +121,9 @@ const AdminPage: React.FC = () => {
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post('/users', { email, roles: role });
+      await axios.post('/users', { email, password, roles: role });
       setEmail('');
+      setPassword('');
       setRole('reviewer');
       fetchUsers();
       toast.success('User created');
@@ -252,6 +254,18 @@ const AdminPage: React.FC = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2"
                   required
+                />
+              </div>
+              <div className="w-1/4">
+                <label className="block text-sm font-medium text-gray-400 mb-1">Password</label>
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="block w-full rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2"
+                  required
+                  minLength={6}
                 />
               </div>
               <div className="w-1/4">
