@@ -32,8 +32,8 @@ Before installing, ensure you have:
 
 2. **Pull Images**
    ```powershell
-   docker pull acrintellioptics.azurecr.io/intellioptics/backend:v2.0.0
-   docker pull acrintellioptics.azurecr.io/intellioptics/frontend:v2.0.0
+   docker pull acrintellioptics.azurecr.io/intellioptics/backend:v2.0.3
+   docker pull acrintellioptics.azurecr.io/intellioptics/frontend:v2.0.2
    docker pull acrintellioptics.azurecr.io/intellioptics/worker:v2.0.0
    ```
 
@@ -111,12 +111,71 @@ docker compose -f docker-compose.prod.yml up -d
 - On Windows, check for hidden `.txt` extension: `dir .env*`
 - **If path contains spaces:** Rename folder to remove spaces (e.g., `C:\intellioptics-2.0` instead of `C:\intellioptics 2.0`)
 
+### Database connection refused
+If you see `connection to server at "pg-intellioptics.postgres.database.azure.com" ... Connection refused`:
+
+The `.env` file is configured for Azure PostgreSQL instead of the local Docker database.
+
+**Check current config:**
+```powershell
+type "C:\intellioptics-2.0\install\.env" | findstr POSTGRES
+```
+
+**Fix:** Edit `.env` and set:
+```
+POSTGRES_PASSWORD=YourSecurePassword123!
+POSTGRES_DSN=postgresql://intellioptics:${POSTGRES_PASSWORD}@postgres:5432/intellioptics
+```
+
+Then restart:
+```powershell
+docker compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml up -d
+```
+
+### Cannot login / No admin user
+After fresh install, create the admin user:
+```powershell
+docker exec -it intellioptics-cloud-backend python /app/app/create_admin.py
+```
+
+Default credentials:
+- Email: `jmorgan@4wardmotions.com`
+- Password: `g@za8560EYAS`
+
+### User creation fails / Detector won't save
+Ensure you're running the latest images:
+```powershell
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d --force-recreate
+```
+
+### Old UI showing after update
+Browser may cache old JavaScript. Fix:
+1. Hard refresh: `Ctrl + Shift + R`
+2. Or open incognito/private window
+3. Or clear browser cache completely
+
+### Verify image versions
+```powershell
+docker images | findstr intellioptics
+```
+
+### Force update to latest images
+```powershell
+docker compose -f docker-compose.prod.yml down
+docker image rm acrintellioptics.azurecr.io/intellioptics/backend:v2.0.3
+docker image rm acrintellioptics.azurecr.io/intellioptics/frontend:v2.0.2
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
 ## Image Versions
 
 | Image | Version | Registry |
 |-------|---------|----------|
-| backend | v2.0.0 | acrintellioptics.azurecr.io/intellioptics/backend |
-| frontend | v2.0.0 | acrintellioptics.azurecr.io/intellioptics/frontend |
+| backend | v2.0.3 | acrintellioptics.azurecr.io/intellioptics/backend |
+| frontend | v2.0.2 | acrintellioptics.azurecr.io/intellioptics/frontend |
 | worker | v2.0.0 | acrintellioptics.azurecr.io/intellioptics/worker |
 
 ## Support
